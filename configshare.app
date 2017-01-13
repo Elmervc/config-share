@@ -54,6 +54,7 @@ entity UploadedFile{
   template outputSchemeNode(n : XMLElem){
     div[class="elem"]{
       strong{ output(n.tag) }
+      span[class="text-muted"]{ output(n.description) }
       for(attr in n.attributes){
         outputSchemeAttr(attr)
       }
@@ -66,36 +67,35 @@ entity UploadedFile{
     div[class="attr"]{
       strong{ output(n.key) }
       " - "
-      emph{
+      code{ output(n.val) }
+      " " span[class="text-muted"]{
         output(n.description)
-	      if(n.description.trim() == ""){
-	        "No description"
-	      }
+        pre{ output(n.getXPath())}
 	    }
-	    if(n.attrValues.length > 0){
-	    	div[class="attr-values"]{
-	    		"Known Values: "
-	    		table{
-		    		for(val in n.attrValues){
-		    			outputSchemeAttrVal(val)
-		    		}
-	    		}
-	    	}
-	    }
+	    // if(n.attrValues.length > 0){
+	    // 	div[class="attr-values"]{
+	    // 		"Known Values: "
+	    // 		table{
+		   //  		for(val in n.attrValues){
+		   //  			outputSchemeAttrVal(val)
+		   //  		}
+	    // 		}
+	    // 	}
+	    // }
     }
   }
   
-  template outputSchemeAttrVal(n : XMLAttrValue){
-  	row[class="attr-value"]{
-  		column{ output(n.val) }
-  		column{ 
-	  		if(n.siblingAttrVals.length > 0){
-	  		    div[class="sibling-attr-values"]{
-	  		      for(sib in n.siblingAttrVals){
-	  		        output(sib.attr.key) " = \"" output(sib.val) "\""
-	  		      }
-	  		    }
-	  		}
-  		}
-  	}
-  }
+  // template outputSchemeAttrVal(n : XMLAttrValue){
+  // 	row[class="attr-value"]{
+  // 		column{ output(n.val) }
+  // 		column{ 
+	 //  		if(n.siblingAttrVals.length > 0){
+	 //  		    div[class="sibling-attr-values"]{
+	 //  		      for(sib in n.siblingAttrVals){
+	 //  		        output(sib.attr.key) " = \"" output(sib.val) "\""
+	 //  		      }
+	 //  		    }
+	 //  		}
+  // 		}
+  // 	}
+  // }

@@ -5,6 +5,10 @@
     border: 1px solid gray;
     margin: 8px;
 }
+.attr {
+    margin-left: 13px;
+    font-family: monospace;
+}
 
 body{
   padding-top: 60px;

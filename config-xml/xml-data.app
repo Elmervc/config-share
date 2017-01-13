@@ -11,87 +11,70 @@ entity XMLElem{
   children : List<XMLElem>
   attributes : List<XMLAttr> (inverse=elem)
   parent  : XMLElem (inverse=children)
+  childNumber : Int
+  xpath : String := getXPath()
   
-  function deriveMeFrom(n : XMLNode){
-    tag := n.getNodeName();
-    var keys :=[a.key | a : XMLAttr in attributes];
-    
-    var thisElemAttributes := List<XMLAttr>();
-    	 
-    for(xmlAttr in n.getAttributes()){
-    	var attr : XMLAttr;
-    	var idx := keys.indexOf( xmlAttr.getNodeName() );
-    	if( idx < 0 ){
-    		attr := XMLAttr{};
-    		keys.add(xmlAttr.getNodeName());
-        attributes.add(attr);
-    	} else {
-    		attr := attributes[idx];
-    	}
-    	
-    	attr.deriveMeFrom(xmlAttr);
-    	thisElemAttributes.add(attr);      
+  function getXPath() : String{
+    var xpath := "";
+    if(parent != null){
+      xpath := parent.getXPath();
     }
-    //keep track of attributes that belong together, e.g. in <parameter name="paramname" value="paramvalue">, map kv-pair name="paramname" to one or more kv-pairs value="paramvalue". 
-    var siblingAttrValues := [a.instanceValue | a : XMLAttr in thisElemAttributes];
-    for(siblingAttrVal in siblingAttrValues){
-    	siblingAttrVal.siblingAttrVals.addAll(siblingAttrValues);
-    	siblingAttrVal.siblingAttrVals.remove( siblingAttrVal );
-    }    
+    return xpath + "/" + "*" + "[" + childNumber + "]";
+  }
+  function deriveMeFrom(n : XMLNode, childNumber : Int){
+    tag := n.getNodeName();
+    this.childNumber := childNumber;
+    var attCnt := 0; 
+    for(xmlAttr in n.getAttributes()){
+    	var attr := XMLAttr{};
+      attributes.add(attr);    	
+    	attr.deriveMeFrom(xmlAttr, attCnt);
+    	attCnt := attCnt + 1;    
+    }
     
-    var childTags := [c.tag | c: XMLElem in children];
-    
+    var cnt := 0;
     for(child in n.getChildren()){
-    	var childElem : XMLElem;
-    	var idx := childTags.indexOf( child.getNodeName() );
-    	if( idx < 0 ){
-    		childElem := XMLElem{};
-    		children.add(childElem);
-    	  childTags.add( child.getNodeName() );
-    	} else {
-    		childElem := children[idx];
-    	}      
-      childElem.deriveMeFrom( child );
+    	var childElem := XMLElem{};
+  		children.add(childElem);
+      childElem.deriveMeFrom( child, cnt);
+      cnt := cnt + 1;
     }
   }
 }
 
 entity RootXMLElem : XMLElem{
   scheme : XMLScheme
+  
+  function getXPath() : String{ return ""; } 
 }
 
 entity XMLAttr{
   elem : XMLElem
   key : String
+  val : Text
   description : WikiText
   unit : Unit
-  attrValues : List<XMLAttrValue> (inverse=attr)
-  instanceValue : XMLAttrValue (transient)
+  childNumber : Int
+  // attrValues : List<XMLAttrValue> (inverse=attr)
   
-  function deriveMeFrom(n : XMLNode){
+  function getXPath() : String{
+    var xpath := elem.getXPath();
+    return xpath + "/@" + key;
+  }
+  
+  function deriveMeFrom(n : XMLNode, childNumber : Int){
     key := n.getNodeName();
-    
-    var attrValuesString := [av.val | av : XMLAttrValue in attrValues];
-    var idx := attrValuesString.indexOf( n.getVal() );
-    if(idx < 0){
-    	instanceValue := XMLAttrValue{
-    		attr := this
-    		val  := n.getVal()
-    	};
-    	attrValuesString.add( instanceValue.val );
-    } else {
-    	instanceValue := attrValues[idx];
-    }
-    
+    val := n.getVal();
+    this.childNumber := childNumber;
   }
 }
 
-entity XMLAttrValue{
-	attr : XMLAttr
-	val  : Text
-	description : WikiText
-	siblingAttrVals : List<XMLAttrValue>	
-}
+// entity XMLAttrValue{
+// 	attr : XMLAttr
+// 	val  : Text
+// 	description : WikiText
+// 	siblingAttrVals : List<XMLAttrValue>	
+// }
 entity Unit{
   acronym : String
   fullName : String
@@ -99,7 +82,6 @@ entity Unit{
 }
 
 
-// section XML
 native class org.w3c.dom.Document as XMLDocument : XMLNode{
   org.webdsl.xml.XMLUtil.getElementsByTagName as getElementsByTagName(String) : List<XMLNode>
   org.webdsl.xml.XMLUtil.getElementsByXPath as getElementsByXPath(String) : List<XMLNode>
@@ -113,9 +95,7 @@ native class org.w3c.dom.Node as XMLNode{
   javaxt.xml.DOM.getAttributeValue as getAttrVal(String) : String
   org.webdsl.xml.XMLUtil.getChildren as getChildren() : List<XMLNode>
   org.webdsl.xml.XMLUtil.getAttributes as getAttributes() : List<XMLNode>
-  getNodeName() : String
-  getBaseURI() : String
-  
+  getNodeName() : String 
 }
 
 function deriveScheme(xmlFile : File) : XMLScheme{
@@ -124,6 +104,6 @@ function deriveScheme(xmlFile : File) : XMLScheme{
     var docNode := xmlString.asXMLDocument() as XMLNode;
     scheme.rootElem := RootXMLElem{};
     log(xmlString);
-    scheme.rootElem.deriveMeFrom(docNode);
+    scheme.rootElem.deriveMeFrom(docNode, 0);
     return scheme;
 }
