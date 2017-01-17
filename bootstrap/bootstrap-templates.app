@@ -41,9 +41,7 @@ section templates
     includeCSS("bootstrap-extension.css?3")
     includeJS( IncludePaths.jQueryJS() )    
     includeJS("bootstrap/js/bootstrap.min.js")
-  <script>
-    jQuery(function() { $(".btn").tooltip({container: 'body'}); } );
-  </script>
+	  tooltipsBS
   }
   
   define bmain(section: String) {
