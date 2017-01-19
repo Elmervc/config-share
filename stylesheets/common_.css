@@ -16,12 +16,18 @@
     margin-bottom: 3px;
     /* color: white; */
     background-color: #d3dad7;
+    padding-bottom: 10px;
 }
 
 .visible-false {
     margin-left : 0px;
     padding-left: 0px;
+    padding-bottom: 0px;
     border: none;
+}
+
+.elem.visible-false .attr.visible-true:last-child {
+    margin-bottom: 20px;
 }
 
 body{

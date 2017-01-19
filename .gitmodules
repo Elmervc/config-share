@@ -1,3 +1,6 @@
 [submodule "elib/elib-bootstrap"]
 	path = elib/elib-bootstrap
 	url = https://github.com/webdsl/elib-bootstrap.git
+[submodule "elib/elib-authentication"]
+	path = elib/elib-authentication
+	url = https://github.com/webdsl/elib-authentication.git

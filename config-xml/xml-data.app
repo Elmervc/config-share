@@ -5,7 +5,9 @@ entity XMLDocumentBase{
   name : String
   description : WikiText
   uploadedFile : UploadedFile
-  
+  owner : User
+  filename : String
+  archived : Bool
 
 }
 
@@ -25,6 +27,11 @@ entity XMLElem{
   editInput : XMLDocInput := getEditInput()
   editInputInternal : XMLDocInput (transient)
   
+  docBase : XMLDocumentBase (cache) := getDocBaseInternal()
+  
+  function getDocBaseInternal() : XMLDocumentBase{
+    return parent.docBase;
+  }
   function getEditInput() : XMLDocInput{
     if(editInputInternal == null){
       editInputInternal := XMLDocInput{
@@ -87,7 +94,10 @@ entity XMLElem{
 entity RootXMLElem : XMLElem{
   scheme : XMLDocumentBase
   
-  function getXPath() : String{ return ""; } 
+  function getXPath() : String{ return ""; }
+  function getDocBaseInternal() : XMLDocumentBase{
+    return scheme;
+  } 
 }
 
 entity XMLAttr{
@@ -100,6 +110,8 @@ entity XMLAttr{
   
   editInput : XMLDocInput := getEditInput()
   editInputInternal : XMLDocInput (transient)
+  docBase : XMLDocumentBase := elem.docBase
+  
   
   function getEditInput() : XMLDocInput{
     if(editInputInternal == null){
@@ -149,12 +161,14 @@ entity XMLAttr{
 entity XMLDocInstance{
   base : XMLDocumentBase
   inputs : List<XMLDocInput>
+  owner : User (inverse=ownedInstances)
+  name  : String
     
   function getXML() : String{
     var fileString := base.uploadedFile.f.getContentAsString();
     var doc := fileString.asXMLDocument();
     for(input in inputs){
-      input.apply(doc);
+      input.applyTo(doc);
     }
     return doc.asString();
   }
@@ -171,7 +185,7 @@ entity XMLDocInput{
   xmlAttr : XMLAttr
   val     : Text
   
-  function apply(doc : XMLDocument){
+  function applyTo(doc : XMLDocument){
     var xpath := if(xmlElem != null) xmlElem.getXPath() else xmlAttr.getXPath();
     var nodes := doc.getNodesByXPath(xpath);
     if(nodes.length > 0){

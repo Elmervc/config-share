@@ -26,9 +26,7 @@ section templates
         // }
       }
       navbarRight{
-        navItems{
-          // signInOut   
-        }
+        signInOut
       }
     }
   }
@@ -44,13 +42,51 @@ section templates
 	  tooltipsBS
   }
   
-  define bmain(section: String) {
-
-  mainIncludes 
-    navigationbar(section)    
-    gridContainer{   
-      messages 
-      elements
-      //body()
+  template bmain(section: String) {
+    template fieldset(s : String){
+	    controlGroup(s)[all attributes]{ elements }
+	  }
+    
+		mainIncludes 
+		  navigationbar(section)    
+		  gridContainer{   
+		    messages 
+		    elements
+		    //body()
+		  }
+  }
+  
+template signInOut() {
+  navItems{
+    if(loggedIn()) {
+      
+        <li class="dropdown">
+        <a class="dropdown-toggle" href="#" data-toggle="dropdown">
+          output(principal().username)
+        </a>
+        dropdownMenu{
+            dropdownMenuItem[class="dropdown-header"]{ 
+              navigate manage-account(principal()) { output(principal().username) }
+            }
+          dropdownMenuDivider
+          dropdownMenuItem{
+            signOffLink()
+          }
+        }
+      </li>
+    } else {      
+      navItem{ navigate( signin( (requestURL() as URL)) )[rel="nofollow"]{ "Sign in" } }
+      navItem{ navigate( signup() ){"Sign up"} }
     }
+  }
+}
+
+
+native class javax.servlet.http.HttpServletRequest as HttpServletRequest{
+      getRequestURL() : StringBuffer
+      getQueryString() : String
+  }
+  
+  function requestURL(): String {
+    return getDispatchServlet().getRequest().getRequestURL().toString();
   }
