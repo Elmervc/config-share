@@ -37,7 +37,7 @@ entity XMLElem{
       editInputInternal := XMLDocInput{
         xmlElem := this
       };
-      editInstance.inputs.add(editInput);
+      editInstance.inputs.add(editInputInternal);
     }
     return editInputInternal;
   }
@@ -118,7 +118,7 @@ entity XMLAttr{
       editInputInternal := XMLDocInput{
         xmlAttr := this
       };
-      editInstance.inputs.add(editInput);
+      editInstance.inputs.add(editInputInternal);
     }
     return editInputInternal;
   }
@@ -188,7 +188,9 @@ entity XMLDocInput{
   function applyTo(doc : XMLDocument){
     var xpath := if(xmlElem != null) xmlElem.getXPath() else xmlAttr.getXPath();
     var nodes := doc.getNodesByXPath(xpath);
+    log("doc.getNodesByXPath(xpath):" + nodes.length);
     if(nodes.length > 0){
+      log("setting value to :" + val);
       nodes[0].setValue(val as String);
     }
   }
