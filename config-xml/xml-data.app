@@ -164,6 +164,12 @@ entity XMLAttr{
 //   regexCheck : String
 // }
 
+type DateTime{
+  format = "EEE d MMM yyyy HH:mm"
+}
+type Date{
+  format = "EEE d MMM yyyy"
+}
 
 entity XMLDocInstance{
   base : XMLDocumentBase
@@ -172,7 +178,8 @@ entity XMLDocInstance{
   name  : String
   name2 : String := if(name == "") base.name else name
   descr : WikiText
-    
+  public : Bool (default = false)
+      
   function getXML() : String{
     var doc := base.docString.asXMLDocument();
     for(input in inputs){

@@ -128,6 +128,27 @@ template inputTable( selected : Ref<{Entity}>, fromArg : [Entity], pageSize : In
   }
 }
 
+override template output( d: ref DateTime ){
+  var default := "EEE d MMM yyyy HH:mm"
+  if( d != null ){
+    dateoutputgeneric( d as ref Date, default )[ all attributes ]
+  }
+}
+
+override template output(d: ref Time){
+  var default := "HH:mm"
+  if( d != null ){
+    dateoutputgeneric( d as ref Date, default )[ all attributes ]
+  }
+}
+
+override template output( d: ref Date ){
+  var default := "EEE d MMM yyyy"
+  if( d != null ){
+    dateoutputgeneric( d, default )[ all attributes ]
+  }
+}
+
 
 native class javax.servlet.http.HttpServletRequest as HttpServletRequest{
       getRequestURL() : StringBuffer

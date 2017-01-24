@@ -24,7 +24,7 @@ extend entity XMLDocumentBase{
 
 extend entity XMLDocInstance{
   function mayView() : Bool{
-    return true;
+    return this.public || mayEdit();
   } 
   function mayEdit() : Bool{
     return this.owner == null || loggedIn() && principal() == this.owner || isAdmin();

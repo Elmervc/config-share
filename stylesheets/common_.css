@@ -1,29 +1,33 @@
 
 
 .elem {
-    padding-left: 20px;
-    border-left: 1px solid gray;
-    border-top: 1px solid gray;
-    background-color: rgba(199, 224, 241, 0.17);
-    margin: 8px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 10px;
+    margin-top: 20px;
+    padding-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: -5px 0px 15px rgba(0,0,0,0.19);
+    background-color: whitesmoke;
 }
 .attr {
-    margin-left: 13px;
     font-family: monospace;
-    border-left: 1px solid #8a6d3b;
-    padding-left: 8px;
-    border-top: 1px solid #8a6d3b;
-    margin-bottom: 3px;
-    /* color: white; */
-    background-color: #d3dad7;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 10px;
+    margin-top: 20px;
     padding-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: -5px 0px 15px rgba(0,0,0,0.19);
+    background-color: rgb(249, 242, 244);
 }
 
 .visible-false {
     margin-left : 0px;
-    padding-left: 0px;
-    padding-bottom: 0px;
     border: none;
+    padding: 0px;
+    box-shadow: none;
+    background: none;
 }
 
 .elem.visible-false .attr.visible-true:last-child {

@@ -12,13 +12,13 @@ rule page root(){
 rule page derivedScheme(base : XMLDocumentBase, rollback : Bool){
   loggedIn() && principal().isAdmin
 }
-rule page editor(docInstance : XMLDocInstance){
-  docInstance.mayView()
-}
+// rule page editor(docInstance : XMLDocInstance){
+//   docInstance.mayView()
+// }
 rule page download-xml(docInstance : XMLDocInstance, filename : String){
   docInstance.mayView()
 }
-rule page browse-doc(base : XMLDocumentBase){
+rule page browse-doc(base : XMLDocumentBase, decoName : String){
   base.mayView()
 }
 rule page add-base-doc(){
@@ -96,9 +96,9 @@ page browse-group(gr : ConfigGroup, deconame : String){
     gridRow{
       gridCol(6){
         editPanel(gr)
-        panelPrimary("Device Configurations"){
+        panelPrimary("Configuration Files"){
           for(b in docs){
-            navigate browse-doc(b){ output(b.name) }
+            navigate browse-doc(b, b.name){ output(b.name) }
           }separated-by{ br }
         }
       }
@@ -109,13 +109,14 @@ page browse-group(gr : ConfigGroup, deconame : String){
   }
 }
 
-page browse-doc(base : XMLDocumentBase){
+page browse-doc(base : XMLDocumentBase, decoName : String){
   var forks := (from XMLDocInstance where base = ~base order by modified desc limit 50)
   
   init{
     if(base.filename == null || base.filename == ""){
       base.filename := base.name.replace(".", "-").replace(" ", "-").replace("/", "-");
     }
+    forks := [f | f in forks where f.mayView()];
   }
   
   bmain(""){
@@ -161,7 +162,7 @@ template forkRow(f : XMLDocInstance){
     gridCol(12){
       navigate show-fork(f, f.name){
         output(f.name2)
-       " by " output(f.owner.username)
+       " " byLine(f.owner)
       }
     // } gridCol(5){
       " at " output(f.created)
@@ -195,12 +196,8 @@ template showForkPageTemplate(instance : XMLDocInstance){
   bmain(""){
     pageHeader{
       output(instance.name2)
-      " by "
-      if(instance.owner == null || (loggedIn() && principal() == instance.owner) ){
-        "You"
-      } else {
-        output(instance.owner.name)
-      }
+      " "
+      byLine(instance.owner)
       br small{iDuplicate " forked from " nav(instance.base) }
     }
     if(instance.owner != null) { par{ submit createFork()[title="A fork will be a personal copy which you can edit, save and share"]{ iDuplicate " Create Your Fork" } } }
@@ -209,6 +206,15 @@ template showForkPageTemplate(instance : XMLDocInstance){
       instanceEditor(instance)
     }
   }
+}
+
+template byLine(u : User){
+	"by "
+    if(u == null || (loggedIn() && principal() == u) ){
+      "You"
+    } else {
+      output(u.name)
+    }
 }
 
 page add-base-doc(){
@@ -278,7 +284,7 @@ page derivedScheme(base : XMLDocumentBase, review : Bool){
 	              small{ " Last edited " output(ins.modified) }
 	            }
 	            " "
-	            navigate editor(ins){ "edit" }
+	            navigate show-fork(ins, ins.name2){ "edit" }
 	          }separated-by{ br }
 	          submit action{ goto new-fork(base); }[title="A fork will be a personal copy which you can edit, save and share"]{ iPlusSign " Create Fork" }
 	        }
@@ -471,8 +477,9 @@ template instanceEditor(docInstance : XMLDocInstance){
         br
         if(loggedIn()){
           if(docInstance.mayEdit()){
-            controlGroup("Name"){ input(docInstance.name) }
-            controlGroup("Description"){ input(docInstance.descr) }
+            controlGroup("Name"){ input(docInstance.name)[placeholder="Optional, a name of your configuration"] }
+            controlGroup("Description"){ input(docInstance.descr)[placeholder="Optional, a description of the configuration details"] }
+            controlGroup("Public"){ input(docInstance.public) " Viewable/Forkable by anyone" }
           }
         }
         
@@ -511,17 +518,17 @@ template yourForks(base : XMLDocumentBase){
 }
 
 
-page editor(docInstance : XMLDocInstance){
-  var doc := docInstance.base
-  
-  bmain("Editor"){
-    h5{ "Edit " output(docInstance.name2) }
-    helpBlock{
-      output(doc.description)
-    }
-    instanceEditor(docInstance)
-  }
-}
+// page editor(docInstance : XMLDocInstance){
+//   var doc := docInstance.base
+//   
+//   bmain("Editor"){
+//     h5{ "Edit " output(docInstance.name2) }
+//     helpBlock{
+//       output(doc.description)
+//     }
+//     instanceEditor(docInstance)
+//   }
+// }
 
 page download-xml(docInstance : XMLDocInstance, filename : String){
   var str := docInstance.getXML()
@@ -531,7 +538,7 @@ page download-xml(docInstance : XMLDocInstance, filename : String){
 }
 
 template nav(base : XMLDocumentBase){
-  navigate browse-doc(base){ output(base.name) }
+  navigate browse-doc(base, base.name){ output(base.name) }
 }
 
 page new-instance-fork(ins : XMLDocInstance){
