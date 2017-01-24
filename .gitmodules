@@ -4,3 +4,6 @@
 [submodule "elib/elib-authentication"]
 	path = elib/elib-authentication
 	url = https://github.com/webdsl/elib-authentication.git
+[submodule "elib/elib-tablesorter"]
+	path = elib/elib-tablesorter
+	url = https://github.com/webdsl/elib-tablesorter.git

@@ -4,11 +4,18 @@ entity XMLDocumentBase{
   rootElem : RootXMLElem (inverse=scheme)
   name : String
   description : WikiText
-  uploadedFile : UploadedFile
+  docString : Text
   owner : User
   filename : String
   archived : Bool
 
+	function deriveScheme() : XMLDocumentBase{
+	    var docNode := docString.asXMLDocument() as XMLNode;
+	    this.rootElem := RootXMLElem{};
+	    log(docString);
+	    this.rootElem.deriveMeFrom(docNode, 0);
+	    return this;
+	}
 }
 
 entity XMLElem{
@@ -163,10 +170,11 @@ entity XMLDocInstance{
   inputs : List<XMLDocInput>
   owner : User (inverse=ownedInstances)
   name  : String
+  name2 : String := if(name == "") base.name else name
+  descr : WikiText
     
   function getXML() : String{
-    var fileString := base.uploadedFile.f.getContentAsString();
-    var doc := fileString.asXMLDocument();
+    var doc := base.docString.asXMLDocument();
     for(input in inputs){
       input.applyTo(doc);
     }
@@ -178,6 +186,19 @@ entity XMLDocInstance{
       input.createInverse();
     }
   }
+  
+  function createFork() : XMLDocInstance{
+    var fork := XMLDocInstance{
+      base := this.base
+      owner := null
+      name := this.name
+      descr := this.descr
+    };
+    for(input in inputs){
+      fork.inputs.add( input.clone() );
+    }
+    return fork;
+  }
 }
 
 entity XMLDocInput{
@@ -186,7 +207,8 @@ entity XMLDocInput{
   val     : Text
   
   function applyTo(doc : XMLDocument){
-    var xpath := if(xmlElem != null) xmlElem.getXPath() else xmlAttr.getXPath();
+    var isElem := xmlElem != null;
+    var xpath := if(isElem) xmlElem.getXPath() else xmlAttr.getXPath();
     var nodes := doc.getNodesByXPath(xpath);
     log("doc.getNodesByXPath(xpath):" + nodes.length);
     if(nodes.length > 0){
@@ -202,38 +224,17 @@ entity XMLDocInput{
     }
   }
   extend function setXmlAttr(x : XMLAttr){
-    val := x.val;
+    if(x != null){ val := x.val; }
   }
   extend function setXmlElem(x : XMLElem){
-    val := x.val;
+    if(x != null){ val := x.val; }
   }
-}
-
-native class org.w3c.dom.Document as XMLDocument : XMLNode{
-  org.webdsl.xml.XMLUtil.getElementsByTagName as getElementsByTagName(String) : List<XMLNode>
-  org.webdsl.xml.XMLUtil.getElementsByXPath as getElementsByXPath(String) : List<XMLNode>
-  org.webdsl.xml.XMLUtil.getNodesByXPath as getNodesByXPath(String) : List<XMLNode>
-  org.webdsl.xml.XMLUtil.asString as asString() : String
-}
-
-native class org.w3c.dom.Node as XMLNode{
-  org.webdsl.xml.XMLUtil.getElementsByTagName as getElementsByTagName(String) : List<XMLNode>
-  org.webdsl.xml.XMLUtil.getElementsByXPath as getElementsByXPath(String) : List<XMLNode>
-  javaxt.xml.DOM.getNodeValue as getVal() : String
-  org.webdsl.xml.XMLUtil.getText as getVal(String) : String
-  javaxt.xml.DOM.getAttributeValue as getAttrVal(String) : String
-  org.webdsl.xml.XMLUtil.getChildren as getChildren() : List<XMLNode>
-  org.webdsl.xml.XMLUtil.getAttributes as getAttributes() : List<XMLNode>
-  getNodeName() : String 
-  org.webdsl.xml.XMLUtil.setValue as setValue(String)
-}
-
-function deriveScheme(xmlFile : File) : XMLDocumentBase{
-    var scheme := XMLDocumentBase{};
-    var xmlString := xmlFile.getContentAsString();
-    var docNode := xmlString.asXMLDocument() as XMLNode;
-    scheme.rootElem := RootXMLElem{};
-    log(xmlString);
-    scheme.rootElem.deriveMeFrom(docNode, 0);
-    return scheme;
+  
+  function clone() : XMLDocInput{
+    return XMLDocInput{
+      xmlElem := this.xmlElem
+      xmlAttr := this.xmlAttr
+      val := this.val
+    };
+  }
 }

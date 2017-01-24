@@ -1,74 +1,123 @@
 application configshare
 
+imports config-group/config-group
 imports config-xml/xml-data
-
 imports bootstrap/bootstrap-templates
-
 imports user/user
-
-
-entity UploadedFile{
-  f : File
-  doc : XMLDocumentBase
-}
 
 access control rules
 rule page root(){
   true
 }
-rule page derivedScheme(uf : UploadedFile, rollback : Bool){
+rule page derivedScheme(base : XMLDocumentBase, rollback : Bool){
   loggedIn() && principal().isAdmin
 }
 rule page editor(docInstance : XMLDocInstance){
   docInstance.mayView()
 }
-rule page downloadXML(docInstance : XMLDocInstance, filename : String){
+rule page download-xml(docInstance : XMLDocInstance, filename : String){
   docInstance.mayView()
 }
-rule page browseDoc(base : XMLDocumentBase){
+rule page browse-doc(base : XMLDocumentBase){
   base.mayView()
 }
-rule page createBaseDoc(){
+rule page add-base-doc(){
   isAdmin()
+}
+rule page browse-group(gr : ConfigGroup, deconame : String){
+  gr.mayView()
 }
 rule template editPanel(base :XMLDocumentBase){
   base.mayEdit()
 }
+rule template editPanel(gr : ConfigGroup){
+  gr.mayEdit()
+}
 rule template manage(n : XMLElem){
   n.docBase.mayEdit()
+}
+rule template yourForks(b : XMLDocumentBase){
+  loggedIn()
+}
+rule template instanceEditor(d : XMLDocInstance){
+  true
+  rule action save(){
+   loggedIn() && d.mayEdit() 
+  }  
 }
 rule template manage(a : XMLAttr){
   a.docBase.mayEdit()
 }
-rule page showFork(f : XMLDocInstance){
+rule page show-fork(f : XMLDocInstance, decoName : String){
   f.mayView()
 }
-rule page newFork(base :XMLDocumentBase){
+rule page new-fork(base :XMLDocumentBase){
   base.mayView()
+}
+rule page new-instance-fork(d : XMLDocInstance){
+  d.base.mayView()
 }
 section pages
 
 page root(){
-  var docs := (from XMLDocumentBase as b where b.archived != true order by b.created desc)
+  var groups := (from ConfigGroup as g where g.archived != true or ~isAdmin() is true order by g.created desc)
+    
   bmain("Home"){
     gridRow{
       gridCol(6){
-        panelPrimary("Configurations"){
+        panelInfo("Device Configurations"){
+          for(g in groups){
+            wellSmall{
+	            navigate browse-group(g, g.name){ output(g.name) }
+	            helpBlock{
+	              small{ output(g.descr) }
+	            }
+            }
+          }
+        }
+      }
+      gridCol(6){
+        if(loggedIn()){
+          yourForks( null as XMLDocumentBase )
+        }
+      }            
+    }
+    gridRow{ gridCol(12){
+      par{
+        manageGroups
+      }
+    }}
+  }
+}
+
+page browse-group(gr : ConfigGroup, deconame : String){
+  var docs := [b | b in gr.baseDocs where b.archived != true order by b.created desc]
+  bmain("Browse Group " + gr.name){
+    gridRow{
+      gridCol(6){
+        editPanel(gr)
+        panelPrimary("Device Configurations"){
           for(b in docs){
-            navigate browseDoc(b){ output(b.name) }
+            navigate browse-doc(b){ output(b.name) }
           }separated-by{ br }
         }
       }
       gridCol(6){
         
-      }
-      
+      }      
     }
   }
 }
 
-page browseDoc(base : XMLDocumentBase){
+page browse-doc(base : XMLDocumentBase){
   var forks := (from XMLDocInstance where base = ~base order by modified desc limit 50)
+  
+  init{
+    if(base.filename == null || base.filename == ""){
+      base.filename := base.name.replace(".", "-").replace(" ", "-").replace("/", "-");
+    }
+  }
+  
   bmain(""){
     pageHeader{ output(base.name) }
     par{
@@ -76,42 +125,50 @@ page browseDoc(base : XMLDocumentBase){
     }
     gridRow{ gridCol(12){
       editPanel(base)
+      
+      yourForks( base )
+            
       panel{
         panelHeading{
           iDuplicate " Latest Forks"
         }
         panelBody{
-          submit action{ return newFork(base); }{ iPlusSign " Create Fork" }
+          par{ submit action{ goto new-fork(base); }{ iPlusSign " Create Fork" } }
           if(forks.length < 1){
             "No forks have been created yet"
           }
           else{
-            tableBordered{
-              for(f in forks){
-                row{
-                  column{
-                    navigate showFork(f){ "view " output(base.name) }
-                  } column{
-                    "by " output(f.owner.username)
-                  } column{
-                    "at " output(f.created)
-                    if( f.modified.after(f.created) ){
-                      " (updated " output(f.modified) ")"
-                    }
-                  }
-                }
-              }
+            
+            for(f in forks){
+              forkRow(f)
             }
+            
           }
         }
       }
       tabsBS([
       ( "Visual Document", { visualDoc(base){} }),
-      ( "Pure XML", { pre{ code{ output( base.uploadedFile.f.getContentAsString() ){} } } } )
+      ( "Pure XML", { pre{ code{ output( base.docString ){} } } } )
       ])
       
     } }
     
+  }
+}
+
+template forkRow(f : XMLDocInstance){
+  gridRow{
+    gridCol(12){
+      navigate show-fork(f, f.name){
+        output(f.name2)
+       " by " output(f.owner.username)
+      }
+    // } gridCol(5){
+      " at " output(f.created)
+      if( f.modified.after(f.created) ){
+        " (updated " output(f.modified) ")"
+      }
+    }
   }
 }
 
@@ -127,29 +184,59 @@ template visualDoc( base : XMLDocumentBase ){
   }
 }
 
-page showFork(instance : XMLDocInstance){
+page show-fork(instance : XMLDocInstance, decoName : String){
+  showForkPageTemplate(instance)
+}
+template showForkPageTemplate(instance : XMLDocInstance){
+  action createFork(){
+    goto new-instance-fork(instance);
+  }
+  
   bmain(""){
     pageHeader{
-      output(instance.name) " by " output(instance.owner.name)
+      output(instance.name2)
+      " by "
+      if(instance.owner == null || (loggedIn() && principal() == instance.owner) ){
+        "You"
+      } else {
+        output(instance.owner.name)
+      }
       br small{iDuplicate " forked from " nav(instance.base) }
     }
+    if(instance.owner != null) { par{ submit createFork()[title="A fork will be a personal copy which you can edit, save and share"]{ iDuplicate " Create Your Fork" } } }
+    helpBlock{ output(instance.descr) }
     panel("Document"){
       instanceEditor(instance)
     }
   }
 }
 
-page createBaseDoc(){
+page add-base-doc(){
   var file : File
+  var newBase := XMLDocumentBase{}
   bmain("Create a new base document"){
     panel("Upload New"){
       horizontalForm{
-        controlGroup("File"){ input(file) }
+        controlGroup("Name"){ input(newBase.name) }
+        controlGroup("Description"){ input(newBase.description) }
+        controlGroup("Archived"){ input(newBase.archived) " archived" }
+        controlGroup("Select Group (optional)"){
+          input(newBase.configGroup)
+        }
+        controlGroup("File (upload)"){ input(file) }
+        controlGroup("File (c/p)"){
+          input(newBase.docString)
+        }
+        
+        
         formActions{
           submit action{
-            var uf := UploadedFile{ f := file };
-            uf.save();
-            return derivedScheme(uf, true);
+            if(file != null){
+              newBase.docString := file.getContentAsString();
+            }
+            
+            newBase.save();
+            return derivedScheme(newBase, true);
           }{"Upload"}
         }
       }
@@ -158,56 +245,77 @@ page createBaseDoc(){
 }
 
 
-page derivedScheme(uf : UploadedFile, rollback : Bool){
+page derivedScheme(base : XMLDocumentBase, review : Bool){
   var instances : [XMLDocInstance]
   init{
-    if(uf.doc == null){
-      uf.doc := deriveScheme(uf.f);
-      uf.doc.filename := uf.f.getFileName();
-      if(rollback){
+    if(base.rootElem == null){
+      base.deriveScheme();
+      if(review){
         rollback();
       }
     } else{
-      instances := from XMLDocInstance as ins where ins.base = ~uf.doc order by created desc;
+      instances := from XMLDocInstance as ins where ins.base = ~base order by created desc;
     }
   }
-  
-  action save(){
-    uf.doc.uploadedFile := uf;
-    
-    // uf.doc.save();
-  }
-  action createInstance(){
-    var instance := XMLDocInstance{
-      base := uf.doc
-    };
-    instance.save();
-    return editor(instance);
+  action doDeriveScheme(){
+    return derivedScheme(base, false);
   }
   
   bmain("Scheme"){
     horizontalForm{
-      panel("New Scheme Settings"){
-        controlGroup("Name"){ input(uf.doc.name) }
-        controlGroup("Description"){ input(uf.doc.description) }
-        
-        formActions{
-          submit save(){ "Save" } br
-        }
-        panel("Instances (forks)"){
-          for(ins in instances){
-            "Instance created " output(ins.created)
-            if( ins.modified.after(ins.created) ){
-              small{ " Last edited " output(ins.modified) }
-            }
-            " "
-            navigate editor(ins){ "edit" }
-          }separated-by{ br }
-          par{ submit createInstance(){ iPlus "New Instance" } }
+      if(!review){
+	      panel("Document Base Settings"){
+	        controlGroup("Name"){ input(base.name) }
+	        controlGroup("Description"){ input(base.description) }
+	        
+	        formActions{
+	          submit action{}{ "Save" } br
+	        }
+	        panel("Instances (forks)"){
+	          for(ins in instances){
+	            "Instance created " output(ins.created)
+	            if( ins.modified.after(ins.created) ){
+	              small{ " Last edited " output(ins.modified) }
+	            }
+	            " "
+	            navigate editor(ins){ "edit" }
+	          }separated-by{ br }
+	          submit action{ goto new-fork(base); }[title="A fork will be a personal copy which you can edit, save and share"]{ iPlusSign " Create Fork" }
+	        }
+	      }
+      }
+      outputSchemeNode(base.rootElem as XMLElem, false)
+      if(review){
+        submit doDeriveScheme(){
+          "This looks Okay, save the scheme"
         }
       }
-      
-      outputSchemeNode(uf.doc.rootElem as XMLElem, false)
+    }
+  }
+}
+
+template editPanel(gr : ConfigGroup){
+  var allowed := (from XMLDocumentBase order by created desc)
+  
+  action addBaseDoc(){
+    goto add-base-doc();
+  }
+  
+  panel("Edit Tools"){
+    horizontalForm{
+      controlGroup("Name") { input(gr.name) }
+      controlGroup("Description") { input(gr.descr) }
+      controlGroup("Archived"){
+        input(gr.archived)
+        helpBlock{ "An archived base document won't be listed in the libraries anymore." }
+      }
+      controlGroup("XML Documents"){
+        submit addBaseDoc() { iPlus " New Base Document"}
+        inputTable(gr.baseDocs, allowed, 50)
+      }
+      formActions{
+        submit action{}{ "Save" }
+      }
     }
   }
 }
@@ -245,11 +353,16 @@ template outputSchemeNode(n : XMLElem, inEditMode : Bool){
       if(n.val != ""){
         " "
         if(inEditMode && n.valueEditable){
-          if(editInstance.mayEdit()){
-            input(n.editInput.val)
-          } else{
-            output(n.editInput.val)
-          }
+          gridRow{ gridCol(6){
+	          if(editInstance.mayEdit()){
+	            input(n.editInput.val)
+	          } else{
+	            output(n.editInput.val)
+	          }
+	        } gridCol(6){
+	          "Original: "
+	          code{ output(n.val) }
+          } }
         } else{
           code{ output(n.val) }
         }
@@ -273,11 +386,16 @@ template outputSchemeAttr(n : XMLAttr, inEditMode : Bool){
       strong{ output(n.key) }
       " "
       if(inEditMode && n.valueEditable){
-        if(editInstance.mayEdit()){
-          input(n.editInput.val)
-        } else{
-          output(n.editInput.val)
-        }
+        gridRow{ gridCol(6){
+          if(editInstance.mayEdit()){
+            input(n.editInput.val)
+          } else{
+            output(n.editInput.val)
+          }
+        } gridCol(6){
+          "Original: "
+          code{ output(n.val) }
+        } }
       } else{
         code{ output(n.val) }
       }
@@ -330,26 +448,74 @@ template instanceEditor(docInstance : XMLDocInstance){
   template manage(n : XMLElem){}
   template manage(n : XMLAttr){}
   
+  action save(){
+    if(docInstance.owner == null){
+      docInstance.owner := principal();
+    }
+    goto show-fork(docInstance, docInstance.name2);
+  }
+  
+  action download(){
+    var f := docInstance.getXML().asFile(docInstance.base.filename);
+    getPage().setMimetype("text/xml");
+    f.download();    
+    if(!docInstance.mayEdit()){
+      rollback();
+    }
+  }
+  
   gridRow{
     gridCol(12){
       form{
         outputSchemeNode(docInstance.base.rootElem as XMLElem, true)
         br
-        // submit action{ return downloadXML(docInstance, docInstance.base.uploadedFile.f.getFileName()); }{"Download XML"}
-        submit action{
-          var f := docInstance.getXML().asFile( docInstance.base.filename);
-          f.download();
-        }{"Download XML"}
+        if(loggedIn()){
+          if(docInstance.mayEdit()){
+            controlGroup("Name"){ input(docInstance.name) }
+            controlGroup("Description"){ input(docInstance.descr) }
+          }
+        }
+        
+        if(!loggedIn() && docInstance.mayEdit()){
+          helpBlock{ 
+            iInfoSign " " navigate signin( requestURL() as URL){"Sign in"} " or " navigate signup(){"register"} " to save/share your fork."
+          }
+        }
+        
+        formActions{
+          submit save(){ iFloppyDisk " Save" }" " 
+          submit download(){ iDownload " Download XML"}
+        }
       }
     }
   }
 }
 
+template yourForks(base : XMLDocumentBase){
+  var forks : [XMLDocInstance]
+  init{
+    if(base == null){
+      forks := from XMLDocInstance as f where f.owner = ~principal();
+    } else {
+      forks := from XMLDocInstance as f where f.base=~base and f.owner = ~principal();
+    }
+   }
+  
+  if(forks.length > 0){
+    panelPrimary("Your Forks"){
+      for(f in forks order by f.modified desc){
+        forkRow(f)
+      }
+    }
+  }
+}
+
+
 page editor(docInstance : XMLDocInstance){
   var doc := docInstance.base
   
   bmain("Editor"){
-    h5{ "Edit " output(docInstance.name) }
+    h5{ "Edit " output(docInstance.name2) }
     helpBlock{
       output(doc.description)
     }
@@ -357,22 +523,26 @@ page editor(docInstance : XMLDocInstance){
   }
 }
 
-page downloadXML(docInstance : XMLDocInstance, filename : String){
-  var str := docInstance.getXML();
+page download-xml(docInstance : XMLDocInstance, filename : String){
+  var str := docInstance.getXML()
   mimetype("application/xml")
   
   rawoutput( str )
 }
 
 template nav(base : XMLDocumentBase){
-  navigate browseDoc(base){ output(base.name) }
+  navigate browse-doc(base){ output(base.name) }
 }
 
-page newFork(docBase : XMLDocumentBase){
+page new-instance-fork(ins : XMLDocInstance){
+  var fork := ins.createFork()
+  
+  showForkPageTemplate(fork)
+}
+
+page new-fork(docBase : XMLDocumentBase){
   var fork := XMLDocInstance{
     base := docBase
   }
-  bmain("Create new Fork"){
-    instanceEditor(fork)
-  }
+  showForkPageTemplate(fork)
 }

@@ -1,6 +1,7 @@
 module bootstrap/bootstrap-templates
 
 imports elib/elib-bootstrap/lib
+imports elib/elib-tablesorter/lib
 
 
 section templates
@@ -81,12 +82,58 @@ template signInOut() {
   }
 }
 
+template inputTable( selected : Ref<{Entity}>, fromArg : [Entity], pageSize : Int ){
+  var from : {Entity} := Set<Entity>()
+  var tnamePrefix := id
+  
+  init{
+    from.addAll(selected);
+    from.addAll(fromArg);
+  }
+  
+  request var tmpset:= Set<Entity>()
+  <input type="hidden" name=tnamePrefix />
+  sortedTableBordered( pageSize, from.length ){
+    theader{
+      th[class="filter-false "]{"Selection"} th{"Options"}
+    }
+    for( e in from ){
+      row{ 
+        column {
+            makeSortable( if(e in selected) "1" else "0" )
+            <input type="checkbox"
+              name=tnamePrefix+e.id
+              if(e in selected){
+                checked="true"
+              }
+              id=tnamePrefix+e.id
+              all attributes
+            />
+        } column {
+                    
+             " " outputLabel(e)
+          }
+        } 
+      databind{
+        if(getRequestParameter(tnamePrefix+e.id) != null){ tmpset.add(e); }
+      }
+        
+    }
+  }
+  
+  databind{
+    if( getRequestParameter(tnamePrefix) != null && tmpset != selected ){
+      selected := tmpset;
+    }
+  }
+}
+
 
 native class javax.servlet.http.HttpServletRequest as HttpServletRequest{
       getRequestURL() : StringBuffer
       getQueryString() : String
   }
   
-  function requestURL(): String {
-    return getDispatchServlet().getRequest().getRequestURL().toString();
-  }
+function requestURL(): String {
+  return getDispatchServlet().getRequest().getRequestURL().toString();
+}
